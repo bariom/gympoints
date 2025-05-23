@@ -94,142 +94,143 @@ def show_admin():
             st.markdown(f"#### {name} {surname} - Codice: {code}")
             st.image(buf, caption=full_url, width=250)
 
-    with tab3:
-        st.subheader("Gestione Rotazioni")
-        attrezzi = ["Suolo", "Cavallo a maniglie", "Anelli", "Volteggio", "Parallele", "Sbarra"]
+with tab3:
+    st.subheader("Gestione Rotazioni")
+    attrezzi = ["Suolo", "Cavallo a maniglie", "Anelli", "Volteggio", "Parallele", "Sbarra"]
 
-        athletes = c.execute("SELECT id, name || ' ' || surname || ' (' || club || ')' FROM athletes").fetchall()
+    athletes = c.execute("SELECT id, name || ' ' || surname || ' (' || club || ')' FROM athletes").fetchall()
 
-        st.markdown("### Aggiungi nuova rotazione")
-        with st.form("add_rotation"):
-            athlete_id = st.selectbox("Atleta", athletes, format_func=lambda x: x[1], key="add_select")
-            apparatus = st.selectbox("Attrezzo", attrezzi, key="add_apparatus")
-            rotation_order = st.number_input("Ordine di rotazione", min_value=1, step=1, key="add_order")
-            if st.form_submit_button("Aggiungi rotazione"):
-                c.execute("INSERT INTO rotations (apparatus, athlete_id, rotation_order) VALUES (?, ?, ?)",
-                          (apparatus, athlete_id[0], rotation_order))
-                conn.commit()
-                st.success("Rotazione aggiunta correttamente")
-
-        st.markdown("### Modifica o elimina rotazione esistente")
-        rotation_rows = c.execute(
-            "SELECT r.id, a.name || ' ' || a.surname || ' - ' || r.apparatus FROM rotations r JOIN athletes a ON a.id = r.athlete_id ORDER BY r.rotation_order, r.apparatus").fetchall()
-        rotation_map = {row[1]: row[0] for row in rotation_rows}
-
-        if rotation_map:
-            selected_label = st.selectbox("Seleziona una rotazione da modificare o eliminare",
-                                          list(rotation_map.keys()), key="edit_select")
-            if selected_label in rotation_map:
-                selected_rotation_id = rotation_map[selected_label]
-                with st.form("edit_rotation"):
-                    new_athlete_id = st.selectbox("Nuovo Atleta", athletes, format_func=lambda x: x[1],
-                                                  key="edit_athlete")
-                    new_apparatus = st.selectbox("Nuovo Attrezzo", attrezzi, key="edit_apparatus")
-                    new_order = st.number_input("Nuovo Ordine di Rotazione", min_value=1, step=1, key="edit_order")
-                    delete = st.checkbox("Elimina questa rotazione")
-                    if st.form_submit_button("Applica modifiche"):
-                        if delete:
-                            c.execute("DELETE FROM rotations WHERE id = ?", (selected_rotation_id,))
-                            st.success("Rotazione eliminata")
-                        else:
-                            c.execute(
-                                "UPDATE rotations SET athlete_id = ?, apparatus = ?, rotation_order = ? WHERE id = ?",
-                                (new_athlete_id[0], new_apparatus, new_order, selected_rotation_id))
-                            st.success("Rotazione aggiornata correttamente")
-                        conn.commit()
-        else:
-            st.info("Nessuna rotazione disponibile da modificare.")
-
-        st.markdown("### Elenco rotazioni")
-        rot_table = c.execute("""
-            SELECT 
-                r.id AS ID,
-                r.apparatus AS Attrezzo,
-                a.name || ' ' || a.surname AS Atleta,
-                r.rotation_order AS Ordine
-            FROM rotations r
-            JOIN athletes a ON a.id = r.athlete_id
-            ORDER BY r.rotation_order, r.apparatus, r.id
-        """).fetchall()
-        st.dataframe(rot_table, use_container_width=True)
-
-        st.markdown("### Generazione automatica rotazioni 2–6")
-
-        if st.button("🔁 Reset rotazioni"):
-            c.execute("DELETE FROM rotations")
+    st.markdown("### Aggiungi nuova rotazione")
+    with st.form("add_rotation"):
+        athlete_id = st.selectbox("Atleta", athletes, format_func=lambda x: x[1], key="add_select")
+        apparatus = st.selectbox("Attrezzo", attrezzi, key="add_apparatus")
+        rotation_order = st.number_input("Ordine di rotazione", min_value=1, step=1, key="add_order")
+        if st.form_submit_button("Aggiungi rotazione"):
+            c.execute("INSERT INTO rotations (apparatus, athlete_id, rotation_order) VALUES (?, ?, ?)",
+                      (apparatus, athlete_id[0], rotation_order))
             conn.commit()
-            st.success("Tutte le rotazioni sono state eliminate.")
+            st.success("Rotazione aggiunta correttamente")
 
-        # ---- Simulazione logica olimpica ----
-        if st.button("👁️ Visualizza anteprima rotazioni 2–6"):
-            # Recupera gruppi di atleti per ogni attrezzo in rotazione 1
-            gruppi = []
-            nomi_gruppi = []
-            for att in attrezzi:
-                atleti_per_attrezzo = c.execute("""
-                    SELECT a.name || ' ' || a.surname
-                    FROM rotations r
-                    JOIN athletes a ON a.id = r.athlete_id
-                    WHERE r.rotation_order = 1 AND r.apparatus = ?
-                    ORDER BY r.id
-                """, (att,)).fetchall()
-                nomi_gruppi.append([x[0] for x in atleti_per_attrezzo])
+    st.markdown("### Modifica o elimina rotazione esistente")
+    rotation_rows = c.execute(
+        "SELECT r.id, a.name || ' ' || a.surname || ' - ' || r.apparatus FROM rotations r JOIN athletes a ON a.id = r.athlete_id ORDER BY r.rotation_order, r.apparatus").fetchall()
+    rotation_map = {row[1]: row[0] for row in rotation_rows}
 
-            # Ruota i gruppi tra attrezzi, E ruota la lista interna degli atleti a sinistra a ogni rotazione
-            for rot in range(2, 7):
-                # Ruota atleti dentro ogni gruppo (olimpica tra atleti)
-                nomi_gruppo_ruotati = []
-                for gruppo in nomi_gruppi:
-                    if gruppo:
-                        gruppo_rotato = gruppo[1:] + gruppo[:1]  # shift a sinistra
+    if rotation_map:
+        selected_label = st.selectbox("Seleziona una rotazione da modificare o eliminare",
+                                      list(rotation_map.keys()), key="edit_select")
+        if selected_label in rotation_map:
+            selected_rotation_id = rotation_map[selected_label]
+            with st.form("edit_rotation"):
+                new_athlete_id = st.selectbox("Nuovo Atleta", athletes, format_func=lambda x: x[1],
+                                              key="edit_athlete")
+                new_apparatus = st.selectbox("Nuovo Attrezzo", attrezzi, key="edit_apparatus")
+                new_order = st.number_input("Nuovo Ordine di Rotazione", min_value=1, step=1, key="edit_order")
+                delete = st.checkbox("Elimina questa rotazione")
+                if st.form_submit_button("Applica modifiche"):
+                    if delete:
+                        c.execute("DELETE FROM rotations WHERE id = ?", (selected_rotation_id,))
+                        st.success("Rotazione eliminata")
                     else:
-                        gruppo_rotato = []
-                    nomi_gruppo_ruotati.append(gruppo_rotato)
-                # Ruota i gruppi tra attrezzi (olimpica tra attrezzi)
-                nomi_gruppi = nomi_gruppo_ruotati[-1:] + nomi_gruppo_ruotati[:-1]  # ruota gruppi a destra
+                        c.execute(
+                            "UPDATE rotations SET athlete_id = ?, apparatus = ?, rotation_order = ? WHERE id = ?",
+                            (new_athlete_id[0], new_apparatus, new_order, selected_rotation_id))
+                        st.success("Rotazione aggiornata correttamente")
+                    conn.commit()
+    else:
+        st.info("Nessuna rotazione disponibile da modificare.")
 
-                st.markdown(f"#### Rotazione {rot}")
-                for att, gruppo in zip(attrezzi, nomi_gruppi):
-                    st.markdown(f"**{att}**:")
-                    if gruppo:
-                        for idx, name in enumerate(gruppo, start=1):
-                            st.write(f"{idx}. {name}")
-                    else:
-                        st.write("_(vuoto)_")
+    st.markdown("### Elenco rotazioni")
+    rot_table = c.execute("""
+        SELECT 
+            r.id AS ID,
+            r.apparatus AS Attrezzo,
+            a.name || ' ' || a.surname AS Atleta,
+            r.rotation_order AS Ordine
+        FROM rotations r
+        JOIN athletes a ON a.id = r.athlete_id
+        ORDER BY r.rotation_order, r.apparatus, r.id
+    """).fetchall()
+    st.dataframe(rot_table, use_container_width=True)
 
-        # ---- Salva rotazioni olimpiche ----
-        if st.button("✅ Genera e salva rotazioni 2–6"):
-            # Recupera gruppi di atleti per ogni attrezzo in rotazione 1 (id!)
-            ids_gruppi = []
-            for att in attrezzi:
-                athlete_ids = c.execute("""
-                    SELECT athlete_id
-                    FROM rotations
-                    WHERE rotation_order = 1 AND apparatus = ?
-                    ORDER BY id
-                """, (att,)).fetchall()
-                ids_gruppi.append([x[0] for x in athlete_ids])
+    st.markdown("### Generazione automatica rotazioni 2–6")
 
-            for rot in range(2, 7):
-                # Ruota atleti dentro ogni gruppo (olimpica tra atleti)
-                ids_gruppo_ruotati = []
-                for gruppo in ids_gruppi:
-                    if gruppo:
-                        gruppo_rotato = gruppo[1:] + gruppo[:1]  # shift a sinistra
-                    else:
-                        gruppo_rotato = []
-                    ids_gruppo_ruotati.append(gruppo_rotato)
-                # Ruota i gruppi tra attrezzi (olimpica tra attrezzi)
-                ids_gruppi = ids_gruppo_ruotati[-1:] + ids_gruppo_ruotati[:-1]  # ruota gruppi a destra
+    if st.button("🔁 Reset rotazioni"):
+        c.execute("DELETE FROM rotations")
+        conn.commit()
+        st.success("Tutte le rotazioni sono state eliminate.")
 
-                for att, gruppo in zip(attrezzi, ids_gruppi):
-                    for athlete_id in gruppo:
-                        c.execute("""
-                            INSERT INTO rotations (apparatus, athlete_id, rotation_order)
-                            VALUES (?, ?, ?)
-                        """, (att, athlete_id, rot))
-            conn.commit()
-            st.success("Rotazioni 2–6 generate e salvate correttamente.")
+    # ---- Simulazione logica olimpica ----
+    if st.button("👁️ Visualizza anteprima rotazioni 2–6"):
+        # Recupera gruppi di atleti per ogni attrezzo in rotazione 1
+        gruppi = []
+        nomi_gruppi = []
+        for att in attrezzi:
+            atleti_per_attrezzo = c.execute("""
+                SELECT a.name || ' ' || a.surname
+                FROM rotations r
+                JOIN athletes a ON a.id = r.athlete_id
+                WHERE r.rotation_order = 1 AND r.apparatus = ?
+                ORDER BY r.id
+            """, (att,)).fetchall()
+            nomi_gruppi.append([x[0] for x in atleti_per_attrezzo])
+
+        # Ruota i gruppi tra attrezzi, E ruota la lista interna degli atleti a sinistra a ogni rotazione
+        for rot in range(2, 7):
+            # Ruota atleti dentro ogni gruppo (olimpica tra atleti)
+            nomi_gruppo_ruotati = []
+            for gruppo in nomi_gruppi:
+                if gruppo:
+                    gruppo_rotato = gruppo[1:] + gruppo[:1]  # shift a sinistra
+                else:
+                    gruppo_rotato = []
+                nomi_gruppo_ruotati.append(gruppo_rotato)
+            # Ruota i gruppi tra attrezzi (olimpica tra attrezzi)
+            nomi_gruppi = nomi_gruppo_ruotati[-1:] + nomi_gruppo_ruotati[:-1]  # ruota gruppi a destra
+
+            st.markdown(f"#### Rotazione {rot}")
+            for att, gruppo in zip(attrezzi, nomi_gruppi):
+                st.markdown(f"**{att}**:")
+                if gruppo:
+                    for idx, name in enumerate(gruppo, start=1):
+                        st.write(f"{idx}. {name}")
+                else:
+                    st.write("_(vuoto)_")
+
+    # ---- Salva rotazioni olimpiche ----
+    if st.button("✅ Genera e salva rotazioni 2–6"):
+        # Recupera gruppi di atleti per ogni attrezzo in rotazione 1 (id!)
+        ids_gruppi = []
+        for att in attrezzi:
+            athlete_ids = c.execute("""
+                SELECT athlete_id
+                FROM rotations
+                WHERE rotation_order = 1 AND apparatus = ?
+                ORDER BY id
+            """, (att,)).fetchall()
+            ids_gruppi.append([x[0] for x in athlete_ids])
+
+        for rot in range(2, 7):
+            # Ruota atleti dentro ogni gruppo (olimpica tra atleti)
+            ids_gruppo_ruotati = []
+            for gruppo in ids_gruppi:
+                if gruppo:
+                    gruppo_rotato = gruppo[1:] + gruppo[:1]  # shift a sinistra
+                else:
+                    gruppo_rotato = []
+                ids_gruppo_ruotati.append(gruppo_rotato)
+            # Ruota i gruppi tra attrezzi (olimpica tra attrezzi)
+            ids_gruppi = ids_gruppo_ruotati[-1:] + ids_gruppo_ruotati[:-1]  # ruota gruppi a destra
+
+            for att, gruppo in zip(attrezzi, ids_gruppi):
+                for athlete_id in gruppo:
+                    c.execute("""
+                        INSERT INTO rotations (apparatus, athlete_id, rotation_order)
+                        VALUES (?, ?, ?)
+                    """, (att, athlete_id, rot))
+        conn.commit()
+        st.success("Rotazioni 2–6 generate e salvate correttamente.")
+
 
     with tab4:
         st.subheader("Inserimento Punteggi")
